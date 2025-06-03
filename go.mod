@@ -1,4 +1,4 @@
-module github.com/richinsley/comfy2go
+module github.com/morzik45/comfy2go
 
 go 1.21
 
