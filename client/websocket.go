@@ -65,7 +65,7 @@ func (w *WebSocketConnection) ConnectWithManager(timeoutSeconds int) error {
 
 	go func() {
 		defer func() {
-			slog.Info("WebSocket connection manager exited")
+			slog.Debug("WebSocket connection manager exited")
 		}()
 
 		retries := 0
