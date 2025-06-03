@@ -165,6 +165,13 @@ func (c *ComfyClient) Init() error {
 	return nil
 }
 
+func (c *ComfyClient) Close() {
+	if c.webSocket != nil {
+		c.webSocket.Close()
+	}
+}
+
+
 // ClientID returns the unique client ID for the connection to the ComfyUI backend
 func (c *ComfyClient) ClientID() string {
 	return c.clientid

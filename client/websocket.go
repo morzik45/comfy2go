@@ -32,6 +32,23 @@ type WebSocketConnection struct {
 	Dialer    websocket.Dialer
 }
 
+func (w *WebSocketConnection) Close() {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+
+	if w.Conn != nil {
+		_ = w.Conn.Close()
+	}
+
+	// Закрыть ConnectionDone, если ещё не закрыт
+	select {
+	case <-w.ConnectionDone:
+		// уже закрыт
+	default:
+		close(w.ConnectionDone)
+	}
+}
+
 // ConnectWithManager connects to the WebSocket using a connection manager
 // timeoutSeconds is the maximum time to wait for a successful connection (0 for no timeout)
 func (w *WebSocketConnection) ConnectWithManager(timeoutSeconds int) error {
@@ -43,39 +60,49 @@ func (w *WebSocketConnection) ConnectWithManager(timeoutSeconds int) error {
 	attemptConnect <- true // Trigger the first connection attempt immediately
 
 	go func() {
+		defer func() {
+			slog.Info("WebSocket connection manager exited")
+		}()
+
 		retries := 0
 		for {
 			select {
 			case <-attemptConnect:
 				err := w.connect()
 				if err != nil {
-					slog.Error("Connection attempt failed: ", "error", err)
+					slog.Error("Connection attempt failed", "error", err)
 					w.IsConnected = false
-
-					// Check if the maximum number of retries has been reached
 					retries++
 					if retries > w.MaxRetry {
-						slog.Error(fmt.Sprintf("Maximum number of retries reached (%d)", w.MaxRetry))
-						close(connected) // Signal that the connection failed
+						slog.Error(fmt.Sprintf("Max retries reached: %d", w.MaxRetry))
+						select {
+						case connected <- false:
+						default:
+						}
 						return
 					}
-
-					// Wait a bit before retrying to connect
 					time.AfterFunc(w.getReconnectDelay(), func() {
-						attemptConnect <- true
+						select {
+						case attemptConnect <- true:
+						default:
+						}
 					})
 				} else {
 					w.IsConnected = true
-					close(connected) // Signal that the connection was successful
+					select {
+					case connected <- true:
+					default:
+					}
 					w.handleMessages()
-					return // Exit the goroutine once connected
+					return
 				}
 			case <-w.ConnectionDone:
-				// Handle graceful shutdown if needed
+				slog.Info("WebSocket connection manager received shutdown signal")
 				return
 			}
 		}
 	}()
+
 
 	// Block until either a successful connection or timeout
 	if timeoutSeconds > 0 {
@@ -121,8 +148,13 @@ func (w *WebSocketConnection) Ping() error {
 func (w *WebSocketConnection) handleMessages() {
 	defer func() {
 		w.Conn.Close()
-		w.ConnectionDone <- true
+		// безопасно отправим сигнал завершения, если канал ещё не закрыт
+		select {
+		case w.ConnectionDone <- true:
+		default:
+		}
 	}()
+
 	for {
 		_, message, err := w.Conn.ReadMessage()
 		if err != nil {
