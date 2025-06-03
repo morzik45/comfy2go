@@ -423,6 +423,8 @@ func (c *ComfyClient) OnWindowSocketMessage(msg string) {
 			qi.SendMessage(m)
 			qi.CloseMessages()
 		}
+	case "execution_success":
+	case "crystools.monitor":
 	default:
 		// Handle unknown data types or return a dedicated error here
 		slog.Warn("Unhandled message type: ", "type", message.Type)

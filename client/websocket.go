@@ -156,7 +156,11 @@ func (w *WebSocketConnection) handleMessages() {
 	for {
 		_, message, err := w.Conn.ReadMessage()
 		if err != nil {
-			slog.Warn(fmt.Sprintf("Read error: %v", err))
+			if strings.Contains(err.Error(), "use of closed network connection") {
+				slog.Debug("WebSocket closed, exiting handler")
+			} else {
+				slog.Warn("Read error", "error", err)
+			}
 			break
 		}
 		if w.Callback != nil {
