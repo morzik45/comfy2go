@@ -30,7 +30,16 @@ type WebSocketConnection struct {
 	BaseDelay time.Duration // The initial delay, e.g., 1 second
 	MaxDelay  time.Duration // The maximum delay, e.g., 1 minute
 	Dialer    websocket.Dialer
+
+	doneOnce sync.Once
 }
+
+func (w *WebSocketConnection) CloseConnectionOnce() {
+	w.doneOnce.Do(func() {
+		close(w.ConnectionDone)
+	})
+}
+
 
 func (w *WebSocketConnection) Close() {
 	w.mu.Lock()
@@ -40,13 +49,7 @@ func (w *WebSocketConnection) Close() {
 		_ = w.Conn.Close()
 	}
 
-	// Закрыть ConnectionDone, если ещё не закрыт
-	select {
-	case <-w.ConnectionDone:
-		// уже закрыт
-	default:
-		close(w.ConnectionDone)
-	}
+	w.CloseConnectionOnce()
 }
 
 // ConnectWithManager connects to the WebSocket using a connection manager
@@ -147,12 +150,7 @@ func (w *WebSocketConnection) Ping() error {
 // Handle incoming WebSocket messages
 func (w *WebSocketConnection) handleMessages() {
 	defer func() {
-		w.Conn.Close()
-		// безопасно отправим сигнал завершения, если канал ещё не закрыт
-		select {
-		case w.ConnectionDone <- true:
-		default:
-		}
+		w.Close()
 	}()
 
 	for {
@@ -166,6 +164,7 @@ func (w *WebSocketConnection) handleMessages() {
 		}
 	}
 }
+
 
 // exponential backoff calculation
 func (w *WebSocketConnection) getReconnectDelay() time.Duration {
