@@ -320,7 +320,6 @@ func (c *ComfyClient) OnWindowSocketMessage(msg string) {
 				}
 				delete(c.queueditems, qi.PromptID)
 				qi.Messages <- m
-				close(qi.Messages)
 			} else {
 				node := qi.Workflow.GetNodeById(*s.Node)
 				m := PromptMessage{
@@ -392,7 +391,6 @@ func (c *ComfyClient) OnWindowSocketMessage(msg string) {
 			}
 			delete(c.queueditems, qi.PromptID)
 			qi.Messages <- m
-			close(qi.Messages)
 		}
 	case "execution_error":
 		s := message.Data.(*WSMessageExecutionError)
@@ -421,7 +419,6 @@ func (c *ComfyClient) OnWindowSocketMessage(msg string) {
 			}
 			delete(c.queueditems, qi.PromptID)
 			qi.Messages <- m
-			close(qi.Messages)
 		}
 	default:
 		// Handle unknown data types or return a dedicated error here
