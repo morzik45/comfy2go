@@ -6,7 +6,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/richinsley/comfy2go/client"
+	"github.com/morzik45/comfy2go/client"
 )
 
 // process CLI arguments
