@@ -13,7 +13,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
-	"github.com/richinsley/comfy2go/graphapi"
+	"github.com/morzik45/comfy2go/graphapi"
 )
 
 type QueuedItemStoppedReason string
