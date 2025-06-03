@@ -13,7 +13,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
-	"github.com/morzik45/comfy2go/graphapi"
+	"github.com/richinsley/comfy2go/graphapi"
 )
 
 type QueuedItemStoppedReason string
@@ -295,7 +295,7 @@ func (c *ComfyClient) OnWindowSocketMessage(msg string) {
 					PromptID: qi.PromptID,
 				},
 			}
-			qi.Messages <- m
+			qi.SendMessage(m)
 		}
 	case "execution_cached":
 		// this is probably not usefull for us
@@ -319,7 +319,8 @@ func (c *ComfyClient) OnWindowSocketMessage(msg string) {
 					c.callbacks.QueuedItemStopped(c, qi, QueuedItemStoppedReasonFinished)
 				}
 				delete(c.queueditems, qi.PromptID)
-				qi.Messages <- m
+				qi.SendMessage(m)
+				qi.CloseMessages()
 			} else {
 				node := qi.Workflow.GetNodeById(*s.Node)
 				m := PromptMessage{
@@ -329,7 +330,7 @@ func (c *ComfyClient) OnWindowSocketMessage(msg string) {
 						Title:  node.DisplayName,
 					},
 				}
-				qi.Messages <- m
+				qi.SendMessage(m)
 			}
 		}
 	case "progress":
@@ -343,7 +344,7 @@ func (c *ComfyClient) OnWindowSocketMessage(msg string) {
 					Max:   s.Max,
 				},
 			}
-			qi.Messages <- m
+			qi.SendMessage(m)
 		}
 	case "executed":
 		s := message.Data.(*WSMessageDataExecuted)
@@ -371,7 +372,7 @@ func (c *ComfyClient) OnWindowSocketMessage(msg string) {
 			if c.callbacks != nil && c.callbacks.QueuedItemDataAvailable != nil {
 				c.callbacks.QueuedItemDataAvailable(c, qi, mdata)
 			}
-			qi.Messages <- m
+			qi.SendMessage(m)
 		}
 	case "execution_interrupted":
 		s := message.Data.(*WSMessageExecutionInterrupted)
@@ -390,7 +391,8 @@ func (c *ComfyClient) OnWindowSocketMessage(msg string) {
 				c.callbacks.QueuedItemStopped(c, qi, QueuedItemStoppedReasonInterrupted)
 			}
 			delete(c.queueditems, qi.PromptID)
-			qi.Messages <- m
+			qi.SendMessage(m)
+			qi.CloseMessages()
 		}
 	case "execution_error":
 		s := message.Data.(*WSMessageExecutionError)
@@ -418,7 +420,8 @@ func (c *ComfyClient) OnWindowSocketMessage(msg string) {
 				c.callbacks.QueuedItemStopped(c, qi, QueuedItemStoppedReasonError)
 			}
 			delete(c.queueditems, qi.PromptID)
-			qi.Messages <- m
+			qi.SendMessage(m)
+			qi.CloseMessages()
 		}
 	default:
 		// Handle unknown data types or return a dedicated error here
